@@ -1,0 +1,3 @@
+[submodule "deps/dml"]
+	path = deps/dml
+	url = https://github.com/Rasmus20B/dml.git
