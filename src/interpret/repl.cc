@@ -1,6 +1,14 @@
-#include "repl.h"
+module;
 
-namespace redml {
+#include <iostream>
+#include <vector>
+
+import interpret.tokenizer;
+import interpret.parser;
+
+export module interpret.repl;
+
+
 std::vector<uint8_t> compile(std::string line) {
   auto res = tokenize(line);
   if(!res.has_value()) {
@@ -14,15 +22,21 @@ std::vector<uint8_t> compile(std::string line) {
     std::cout << t.symbol << " -> " << t.type << "\n";
   }
 
+  parser p(tokens);
+
+  p.parse_program();
+
   return {};
 }
-void repl_main() {
+
+export void repl_main() {
   std::string line;
+  std::string __prompt = ":>";
   uint32_t scope = 0;
   std::vector<uint8_t> bytecode;
   while(true) {
     if(line.empty()) {
-      std::cout << ":>";
+      std::cout << __prompt;
     }
 
     std::string cur;
@@ -61,5 +75,4 @@ void repl_main() {
     }
     line.clear();
   }
-}
 }

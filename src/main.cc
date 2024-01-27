@@ -1,6 +1,6 @@
-#include "repl.h"
+import interpret.repl;
 
 auto main(int argc, char**argv) -> int {
-  redml::repl_main();
+  repl_main();
 	return 0;
 }

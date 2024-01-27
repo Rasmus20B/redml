@@ -3,6 +3,7 @@ project(redml)
 set(CMAKE_CXX_STANDARD 23)
 set(CXX_STANDARD_REQUIRED YES)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 
 add_compile_options(

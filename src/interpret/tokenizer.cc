@@ -1,8 +1,14 @@
-#include "tokenizer.h"
+module;
 
+#include <utility>
+#include <expected>
+#include <vector>
 
-namespace redml {
-std::expected<std::vector<Token>, std::string> tokenize(std::string line) {
+import interpret.token;
+
+export module interpret.tokenizer;
+
+export std::expected<std::vector<Token>, std::string> tokenize(std::string line) {
   int idx = 0;
   std::vector<Token> buffer;
   while(idx < line.size()) {
@@ -85,6 +91,12 @@ std::expected<std::vector<Token>, std::string> tokenize(std::string line) {
             .symbol = static_cast<std::string>(TOKENSYMBOLS[DIV])
             });
         break;
+      case '=':
+        buffer.emplace_back(Token{
+            .type = ASSIGN,
+            .symbol = static_cast<std::string>(TOKENSYMBOLS[ASSIGN])
+            });
+        break;
       case '(':
         buffer.emplace_back(Token{
             .type = LEFT_PAREN,
@@ -138,5 +150,4 @@ std::expected<std::vector<Token>, std::string> tokenize(std::string line) {
     idx++;
   }
   return buffer;
-}
 }
