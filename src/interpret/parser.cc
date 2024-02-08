@@ -20,6 +20,7 @@ enum class NodeType {
   IDENT,
   COMPOUND_STATEMENT,
   INT_LIT,
+  BINOP,
   SIZE,
 };
 
@@ -39,7 +40,8 @@ static std::unordered_map<NodeType, NodeClass> NodeGroups {{
   {NodeType::ASSIGNMENT, NodeClass::BINARY},
   {NodeType::IDENT, NodeClass::BINARY},
   {NodeType::COMPOUND_STATEMENT, NodeClass::NARY},
-  {NodeType::INT_LIT, NodeClass::BINARY}
+  {NodeType::INT_LIT, NodeClass::BINARY},
+  {NodeType::BINOP, NodeClass::BINARY}
 }};
 
 static std::unordered_map<TokenType, int> precedence {{
@@ -118,9 +120,9 @@ export class parser {
           std::cout << "Going right\n";
           print_binary_expr(tmp->rchild);
         }
-        if(type == NodeClass::UNARY) {
-          print_unary_expr(e);
-        }
+      }
+      if(type == NodeClass::UNARY) {
+        print_unary_expr(e);
       }
     }
 
@@ -311,13 +313,13 @@ end_parse:
 
         auto p2 = precedence[tokens[idx].type];
         if(p1 < p2) {
-          rhs = parse_binop_expr(p1 + 1, std::move(rhs));
+          rhs = parse_binop_expr(p1 + 1, rhs);
           if(!rhs) {
             return nullptr;
           }
         }
-        lhs = std::make_unique<Binary>(
-            NodeType::SIZE,
+        lhs = std::make_shared<Binary>(
+            NodeType::BINOP,
             (rhs),
             (lhs),
             v1
@@ -333,7 +335,7 @@ end_parse:
 
       return std::make_unique<Binary>(
           NodeType::ASSIGNMENT,
-          std::move(lhs),
+          (lhs),
           parse_binop_expr(0, parse_primary_expr()),
           "="
           );

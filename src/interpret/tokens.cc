@@ -28,6 +28,8 @@ export enum TokenType  {
   RETURN,
   COMMA,
   EQ,
+  IF,
+  ELSE,
   SIZE
 };
 
@@ -52,7 +54,9 @@ export constexpr std::array<std::string_view, TokenType::SIZE> TOKENSYMBOLS {{
   ":",
   "return",
   ",",
-  "=="
+  "==",
+  "if",
+  "else",
 }};
 
 export struct Token {

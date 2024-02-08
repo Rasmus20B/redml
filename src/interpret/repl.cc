@@ -2,6 +2,7 @@ module;
 
 #include <iostream>
 #include <vector>
+#include <string>
 
 import interpret.tokenizer;
 import interpret.parser;
