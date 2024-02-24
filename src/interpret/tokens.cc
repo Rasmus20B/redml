@@ -1,5 +1,6 @@
 module;
 
+#include <utility>
 #include <string>
 #include <string_view>
 #include <array>
@@ -33,7 +34,7 @@ export enum TokenType  {
   SIZE
 };
 
-export constexpr std::array<std::string_view, TokenType::SIZE> TOKENSYMBOLS {{
+export constexpr std::array<std::string_view, std::to_underlying(TokenType::SIZE)> TOKENSYMBOLS {{
   "int",
   "void",
   "",

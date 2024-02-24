@@ -1,10 +1,12 @@
 module;
 
 #include <type_traits>
+#include <utility>
 #include <unordered_map>
 #include <string>
 #include <memory>
 #include <iostream>
+#include <print>
 #include <expected>
 #include <vector>
 
@@ -16,11 +18,13 @@ enum class NodeType {
   FUNC_DECL,
   FUNC_DEF,
   FUNC_CALL,
+  VAR_DECL,
   ASSIGNMENT,
   IDENT,
   COMPOUND_STATEMENT,
   INT_LIT,
   BINOP,
+  RETURN,
   SIZE,
 };
 
@@ -37,11 +41,13 @@ static std::unordered_map<NodeType, NodeClass> NodeGroups {{
   {NodeType::FUNC_DECL, NodeClass::UNARY},
   {NodeType::FUNC_DEF, NodeClass::UNARY},
   {NodeType::FUNC_CALL, NodeClass::BINARY},
+  {NodeType::VAR_DECL, NodeClass::UNARY},
   {NodeType::ASSIGNMENT, NodeClass::BINARY},
   {NodeType::IDENT, NodeClass::BINARY},
   {NodeType::COMPOUND_STATEMENT, NodeClass::NARY},
   {NodeType::INT_LIT, NodeClass::BINARY},
-  {NodeType::BINOP, NodeClass::BINARY}
+  {NodeType::BINOP, NodeClass::BINARY},
+  {NodeType::RETURN, NodeClass::UNARY}
 }};
 
 static std::unordered_map<TokenType, int> precedence {{
@@ -87,6 +93,11 @@ struct Ternary : public Expr {
 };
 
 struct Nary : public Expr {
+  Nary(NodeType t, e_ptr c) : Expr(t) {
+    children.push_back(c);
+  };
+
+  Nary() : Expr(NodeType::ROOT) {}
   std::vector<e_ptr> children;
 };
 
@@ -95,13 +106,13 @@ export class parser {
   public:
 
     parser(std::vector<Token> t) : tokens(t) {
-      tree = Nary(NodeType::ROOT);
+      tree = Nary();
     }
 
     void print_unary_expr(e_ptr e) {
       auto tmp = static_cast<Unary*>(e.get());
       std::cout << "OP: " << tmp->val << "\n";
-      if(NodeGroups[e.get()->type] == NodeClass::UNARY) {
+      if(NodeGroups[tmp->type] == NodeClass::UNARY) {
         print_unary_expr(std::move(tmp->child));
       }
     }
@@ -130,13 +141,19 @@ export class parser {
       auto ch = static_cast<Nary*>(e.get());
 
       for(auto &s : ch->children) {
-        std::cout << "Type of child expr: " << static_cast<int>(s->type) << "\n";
+        std::cout << "Gets here\n";
+        std::cout << std::to_underlying(s.get()->type) << "\n";
+        // std::cout << "Type of child expr: " << static_cast<int>(s.get()->type) << "\n";
       }
     }
 
     void print_tree() {
       for(auto &ci : tree.children) {
-        switch(ci.get()->type) {
+        auto c = static_cast<Unary*>(ci.get());
+        switch(c->type) {
+          case NodeType::VAR_DECL:
+            std::println("GET HERE");
+            break;
           case NodeType::ASSIGNMENT:
             std::cout << "FODUN ASIGNEMN\n";
             print_binary_expr(ci);
@@ -156,16 +173,23 @@ export class parser {
     }
 
     void parse_program() {
+      e_ptr cur;
       while(idx < tokens.size()) {
         Token a = tokens[idx];
         switch (a.type) {
-          case TYPE_INT:
-            tree.children.push_back((parse_int()));
+          case TYPE_INT: {
+            cur = parse_int();
+            std::println("i type: {}", std::to_underlying(cur->type));
+            tree.children.push_back(cur);
+            std::println("i count: {}", cur.use_count());
+            std::println("PUSHED A CHILD");
             break;
+          }
           case TYPE_VOID:
             break;
           case SEMI_COL:
             idx++;
+            std::println("{} / {}", idx, tokens.size());
             break;
           default:
             goto end_parse;
@@ -181,7 +205,9 @@ end_parse:
       auto a = next_token();
       switch(a.type) {
         case LEFT_BRACK:
-          return parse_compound_statement();
+          return std::make_shared<Nary>(
+              NodeType::COMPOUND_STATEMENT,
+              parse_compound_statement());
         case INT_LIT:
           break;
         case TYPE_INT:
@@ -189,7 +215,10 @@ end_parse:
         case IDENT:
           break;
         case RETURN:
-          break;
+          return std::make_unique<Unary>(parse_primary_expr(),
+              NodeType::RETURN,
+              "return",
+              "return");
         case RIGHT_BRACK:
           return nullptr;
         default:
@@ -199,13 +228,15 @@ end_parse:
     }
 
     e_ptr parse_compound_statement() {
-      auto cs = Nary(NodeType::COMPOUND_STATEMENT);
+      auto cs = Nary(NodeType::COMPOUND_STATEMENT, {});
 
       while(tokens[idx].type != RIGHT_BRACK) {
-        cs.children.push_back(parse_statement());
+        auto s = parse_statement();
+        std::cout << std::to_underlying(s->type) << "\n";
+        cs.children.push_back(s);
       }
       idx++;
-      return std::make_unique<Nary>(std::move(cs));
+      return std::make_shared<Nary>(cs);
     }
 
     e_ptr parse_func_decl(std::string_view ident, std::string_view ftype) {
@@ -298,7 +329,7 @@ end_parse:
         auto t1 = tokens[idx].type;
         auto v1 = tokens[idx].symbol;
         auto p1 = precedence[tokens[idx].type];
-        std::cout << tokens[idx].symbol << "\n";
+        std::println("Found symbol: {}", tokens[idx].symbol);
         if(p1 < prec) {
           return lhs;
         }
@@ -318,7 +349,7 @@ end_parse:
             return nullptr;
           }
         }
-        lhs = std::make_shared<Binary>(
+        lhs = std::make_unique<Binary>(
             NodeType::BINOP,
             (rhs),
             (lhs),
@@ -365,7 +396,11 @@ end_parse:
       std::cout << "Looking @" << a.type << " -> " << a.symbol << "\n";
       switch (a.type) {
         case IDENT:
-          return parse_identifier(a.symbol, "int");
+          return std::make_shared<Unary>(
+              parse_identifier(a.symbol, "int"),
+              NodeType::VAR_DECL,
+              a.symbol,
+              "int");
         default:
           std::cerr << "Error: " << a.symbol << " is not a valid identifier.\n";
           return nullptr;
@@ -381,5 +416,5 @@ end_parse:
     std::vector<Token> tokens;
     int idx{};
     std::string buffer;
-    Nary tree;
+    Nary tree{};
 };
