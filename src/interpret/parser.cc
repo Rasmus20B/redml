@@ -93,6 +93,7 @@ struct Ternary : public Expr {
 };
 
 struct Nary : public Expr {
+  Nary(NodeType t) : Expr(t) {}
   Nary(NodeType t, e_ptr c) : Expr(t) {
     children.push_back(c);
   };
@@ -110,6 +111,7 @@ export class parser {
     }
 
     void print_unary_expr(e_ptr e) {
+      std::println("printing Unary");
       auto tmp = static_cast<Unary*>(e.get());
       std::cout << "OP: " << tmp->val << "\n";
       if(NodeGroups[tmp->type] == NodeClass::UNARY) {
@@ -119,6 +121,7 @@ export class parser {
 
     void print_binary_expr(e_ptr e) {
 
+      std::println("printing binary");
       auto type = NodeGroups[e.get()->type];
       if(type == NodeClass::BINARY) {
         auto tmp = static_cast<Binary*>(e.get());
@@ -138,8 +141,10 @@ export class parser {
     }
 
     void print_compound(e_ptr e) {
+      std::println("printing compound");
       auto ch = static_cast<Nary*>(e.get());
 
+      std::println("ch {}", ch->children.size());
       for(auto &s : ch->children) {
         std::cout << "Gets here\n";
         std::cout << std::to_underlying(s.get()->type) << "\n";
@@ -148,6 +153,7 @@ export class parser {
     }
 
     void print_tree() {
+      std::println("printing the tree");
       for(auto &ci : tree.children) {
         auto c = static_cast<Unary*>(ci.get());
         switch(c->type) {
@@ -164,7 +170,7 @@ export class parser {
             break;
           case NodeType::FUNC_DEF:
             std::cout << "Function Definition: " << static_cast<Unary*>(ci.get())->val << " -> " << static_cast<Unary*>(ci.get())->etype << "\n";
-            print_compound(ci);
+            print_compound(c->child);
             break;
           default:
             break;
@@ -179,10 +185,7 @@ export class parser {
         switch (a.type) {
           case TYPE_INT: {
             cur = parse_int();
-            std::println("i type: {}", std::to_underlying(cur->type));
             tree.children.push_back(cur);
-            std::println("i count: {}", cur.use_count());
-            std::println("PUSHED A CHILD");
             break;
           }
           case TYPE_VOID:
@@ -209,18 +212,26 @@ end_parse:
               NodeType::COMPOUND_STATEMENT,
               parse_compound_statement());
         case INT_LIT:
+          std::println("Gets here");
+            return parse_primary_expr();
           break;
         case TYPE_INT:
           return parse_int();
         case IDENT:
           break;
         case RETURN:
-          return std::make_unique<Unary>(parse_primary_expr(),
+          next_token();
+          return std::make_shared<Unary>(
+              parse_primary_expr(),
               NodeType::RETURN,
               "return",
               "return");
         case RIGHT_BRACK:
-          return nullptr;
+          return std::make_shared<Unary>(
+              nullptr,
+              NodeType::SIZE,
+              "end",
+              "end");
         default:
           return nullptr;
       }
@@ -228,14 +239,14 @@ end_parse:
     }
 
     e_ptr parse_compound_statement() {
-      auto cs = Nary(NodeType::COMPOUND_STATEMENT, {});
-
+      auto cs = Nary(NodeType::COMPOUND_STATEMENT);
       while(tokens[idx].type != RIGHT_BRACK) {
         auto s = parse_statement();
-        std::cout << std::to_underlying(s->type) << "\n";
+        std::println("s type: {}", std::to_underlying(s->type));
         cs.children.push_back(s);
       }
       idx++;
+      std::println("GETSD HERE");
       return std::make_shared<Nary>(cs);
     }
 
@@ -376,7 +387,11 @@ end_parse:
       auto a = next_token();
       switch(a.type) {
         case SEMI_COL:
-          return nullptr;
+          return std::make_shared<Unary>(
+              nullptr,
+              NodeType::VAR_DECL,
+              fname,
+              ftype);
         case LEFT_PAREN:
           if(fname.size() && ftype.size()) {
             return parse_func_decl(fname, ftype);
@@ -396,11 +411,7 @@ end_parse:
       std::cout << "Looking @" << a.type << " -> " << a.symbol << "\n";
       switch (a.type) {
         case IDENT:
-          return std::make_shared<Unary>(
-              parse_identifier(a.symbol, "int"),
-              NodeType::VAR_DECL,
-              a.symbol,
-              "int");
+          return parse_identifier(a.symbol, "int");
         default:
           std::cerr << "Error: " << a.symbol << " is not a valid identifier.\n";
           return nullptr;
